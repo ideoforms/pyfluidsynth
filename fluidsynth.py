@@ -10,19 +10,21 @@
 
     Released under the LGPL
 
-    This module contains python bindings for FluidSynth.  FluidSynth is a
-    software synthesizer for generating music.  It works like a MIDI
+    This module contains Python bindings for FluidSynth.  FluidSynth is a
+    software synthesizer that generates music.  It works like a MIDI
     synthesizer.  You load patches, set parameters, then send NOTEON and
     NOTEOFF events to play notes.  Instruments are defined in SoundFonts,
     generally files with the extension SF2.  FluidSynth can either be used
     to play audio itself, or you can call a function that returns chunks
-    of audio data and output the data to the soundcard yourself.
+    of audio data and outputs the data to the soundcard yourself.
     FluidSynth works on all major platforms, so pyFluidSynth should also.
 
 ================================================================================
 """
 
+import contextlib
 import os
+import subprocess
 from ctypes import (
     CDLL,
     CFUNCTYPE,
@@ -70,12 +72,13 @@ def load_libfluidsynth(debug_print: bool = False) -> str:
                 print(f"'{lib_name}' was loaded as {lib}.")
             return lib
 
-    # On macOS on Apple silicon, non-Homebrew Python distributions fail to locate
-    # homebrew-installed instances of FluidSynth. This workaround addresses this.
-    if homebrew_prefix := os.getenv("HOMEBREW_PREFIX"):
-        lib = os.path.join(homebrew_prefix, "lib", "libfluidsynth.dylib")
-        if os.path.exists(lib):
-            return lib
+    # Workaround for macOS with a Homebrew-installed instance of FluidSynth but a
+    # non-Homebrew-installed instance of Python.
+    with contextlib.suppress(FileNotFoundError):
+        if homebrew_prefix := subprocess.run(["brew", "--prefix"], text=True).stdout:
+            lib = os.path.join(homebrew_prefix, "lib", "libfluidsynth.dylib")
+            if os.path.exists(lib):
+                return lib
 
     raise ImportError("Couldn't find the FluidSynth library.")
 
